@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Hello Kitty Messenger - Общайся с друзьями 💖</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -197,6 +197,12 @@
             background: white;
             border-top: 2px solid #ffd1dc;
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-row {
+            display: flex;
             gap: 10px;
         }
 
@@ -206,6 +212,7 @@
             border: 2px solid #ffb7c5;
             border-radius: 25px;
             outline: none;
+            font-size: 16px;
         }
 
         .input-area button {
@@ -215,6 +222,34 @@
             border-radius: 25px;
             color: white;
             cursor: pointer;
+            font-size: 20px;
+        }
+
+        .emoji-btn {
+            background: #ffb7c5 !important;
+            font-size: 20px !important;
+            padding: 0 20px !important;
+        }
+
+        .emoji-panel {
+            display: none;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            background: #fff5f7;
+            border-radius: 20px;
+            border: 2px solid #ffb7c5;
+        }
+
+        .emoji-panel span {
+            font-size: 28px;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s;
+        }
+
+        .emoji-panel span:hover {
+            transform: scale(1.2);
         }
 
         .notification {
@@ -270,6 +305,7 @@
             margin: 10px 0;
             border: 2px solid #ffd1dc;
             border-radius: 25px;
+            font-size: 16px;
         }
 
         .auth-box button {
@@ -280,6 +316,7 @@
             border-radius: 25px;
             cursor: pointer;
             width: 100%;
+            font-size: 16px;
         }
 
         .switch-auth {
@@ -287,6 +324,118 @@
             color: #ff6b8f;
             cursor: pointer;
             text-decoration: underline;
+        }
+
+        /* ========== МОБИЛЬНАЯ АДАПТАЦИЯ ========== */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+
+            .app {
+                flex-direction: column;
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 35%;
+                border-right: none;
+                border-bottom: 2px solid #ffd1dc;
+            }
+
+            .chat-area {
+                height: 65%;
+            }
+
+            .users-list {
+                display: flex;
+                overflow-x: auto;
+                padding: 10px;
+                gap: 10px;
+                flex-wrap: nowrap;
+            }
+
+            .section-title {
+                display: none;
+            }
+
+            .user-item {
+                min-width: 85px;
+                flex-direction: column;
+                text-align: center;
+                gap: 5px;
+                margin: 0;
+                padding: 10px;
+            }
+
+            .user-avatar-small {
+                width: 50px;
+                height: 50px;
+                font-size: 28px;
+                margin: 0 auto;
+            }
+
+            .user-name {
+                font-size: 12px;
+            }
+
+            .user-info-small {
+                width: 100%;
+            }
+
+            .message {
+                max-width: 85%;
+                font-size: 15px;
+            }
+
+            .chat-header {
+                padding: 12px 15px;
+            }
+
+            .chat-header h2 {
+                font-size: 18px;
+            }
+
+            .chat-avatar {
+                font-size: 40px;
+            }
+
+            .input-area {
+                padding: 12px;
+            }
+
+            .input-row input {
+                font-size: 16px;
+                padding: 10px 12px;
+            }
+
+            .input-row button {
+                padding: 0 18px;
+            }
+
+            .emoji-btn {
+                padding: 0 15px !important;
+            }
+
+            .auth-box {
+                width: 90%;
+                padding: 30px 20px;
+                margin: 20px;
+            }
+
+            .auth-box h2 {
+                font-size: 24px;
+            }
+
+            .notification {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -452,13 +601,30 @@
                                 <div style="text-align: center; color: #ffb7c5; padding: 20px;">💬 Напиши первое сообщение! 💬</div>
                             </div>
                             <div class="input-area">
-                                <input type="text" id="messageInput" placeholder="Напиши сообщение... 💬" onkeypress="handleKeyPress(event)">
-                                <button onclick="sendMessage()">📨 Отправить</button>
+                                <div class="emoji-panel" id="emojiPanel">
+                                    <span onclick="addEmoji('😊')">😊</span>
+                                    <span onclick="addEmoji('😂')">😂</span>
+                                    <span onclick="addEmoji('❤️')">❤️</span>
+                                    <span onclick="addEmoji('💖')">💖</span>
+                                    <span onclick="addEmoji('🌸')">🌸</span>
+                                    <span onclick="addEmoji('🐱')">🐱</span>
+                                    <span onclick="addEmoji('🎀')">🎀</span>
+                                    <span onclick="addEmoji('✨')">✨</span>
+                                    <span onclick="addEmoji('😍')">😍</span>
+                                    <span onclick="addEmoji('🥰')">🥰</span>
+                                    <span onclick="addEmoji('💕')">💕</span>
+                                    <span onclick="addEmoji('💗')">💗</span>
+                                </div>
+                                <div class="input-row">
+                                    <button class="emoji-btn" onclick="toggleEmojiPanel()">😊</button>
+                                    <input type="text" id="messageInput" placeholder="Напиши сообщение... 💬" onkeypress="handleKeyPress(event)">
+                                    <button onclick="sendMessage()">📨</button>
+                                </div>
                             </div>
                         ` : `
                             <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column;">
                                 <div style="font-size: 80px;">💖</div>
-                                <div style="color: #ff88a5;">Выбери друга чтобы начать общение!</div>
+                                <div style="color: #ff88a5; text-align: center; padding: 20px;">Выбери друга чтобы начать общение!</div>
                             </div>
                         `}
                     </div>
@@ -563,6 +729,21 @@
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 sendMessage();
+            }
+        }
+
+        function toggleEmojiPanel() {
+            const panel = document.getElementById('emojiPanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+            }
+        }
+
+        function addEmoji(emoji) {
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.value += emoji;
+                input.focus();
             }
         }
 
