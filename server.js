@@ -17,6 +17,7 @@ app.use(express.static('public'));
 // Файлы для хранения данных
 const USERS_FILE = path.join(__dirname, 'users.json');
 const MESSAGES_FILE = path.join(__dirname, 'messages.json');
+const GROUPS_FILE = path.join(__dirname, 'groups.json');
 
 // Загрузка пользователей
 function loadUsers() {
@@ -48,8 +49,24 @@ function saveMessages(messages) {
     fs.writeFileSync(MESSAGES_FILE, JSON.stringify(messages, null, 2));
 }
 
+// Загрузка групп
+function loadGroups() {
+    try {
+        if (fs.existsSync(GROUPS_FILE)) {
+            return JSON.parse(fs.readFileSync(GROUPS_FILE, 'utf8'));
+        }
+    } catch (e) { console.error(e); }
+    return { groups: [], nextId: 1 };
+}
+
+// Сохранение групп
+function saveGroups(groupsData) {
+    fs.writeFileSync(GROUPS_FILE, JSON.stringify(groupsData, null, 2));
+}
+
 let users = loadUsers();
 let messages = loadMessages();
+let groupsData = loadGroups();
 let onlineUsers = new Map(); // username -> socketId
 
 // Функция для аватарки
@@ -58,7 +75,9 @@ function getRandomAvatar() {
     return avatars[Math.floor(Math.random() * avatars.length)];
 }
 
-// API: Регистрация
+// ============ API ============
+
+// Регистрация
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     
@@ -87,7 +106,7 @@ app.post('/api/register', async (req, res) => {
     res.json({ success: true, message: 'Регистрация успешна! 💖' });
 });
 
-// API: Вход
+// Вход
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     
@@ -110,7 +129,7 @@ app.post('/api/login', async (req, res) => {
     });
 });
 
-// API: Получить всех пользователей
+// Получить всех пользователей
 app.get('/api/users', (req, res) => {
     const userList = Object.keys(users).map(username => ({
         username,
@@ -120,7 +139,7 @@ app.get('/api/users', (req, res) => {
     res.json(userList);
 });
 
-// API: Поиск пользователя по никнейму
+// Поиск пользователя
 app.get('/api/search/:query', (req, res) => {
     const query = req.params.query.toLowerCase();
     const results = Object.keys(users)
@@ -134,7 +153,7 @@ app.get('/api/search/:query', (req, res) => {
     res.json(results);
 });
 
-// API: Получить историю сообщений
+// История личных сообщений
 app.get('/api/messages/:user1/:user2', (req, res) => {
     const { user1, user2 } = req.params;
     const chatId = [user1, user2].sort().join('_');
@@ -142,7 +161,73 @@ app.get('/api/messages/:user1/:user2', (req, res) => {
     res.json(chatMessages);
 });
 
-// Socket.io
+// ============ ГРУППОВЫЕ ЧАТЫ ============
+
+// Создать группу
+app.post('/api/groups/create', (req, res) => {
+    const { name, createdBy, members } = req.body;
+    
+    if (!name || !createdBy) {
+        return res.status(400).json({ error: 'Название и создатель обязательны!' });
+    }
+    
+    const groupId = groupsData.nextId++;
+    const newGroup = {
+        id: groupId,
+        name: name,
+        avatar: '👥',
+        createdBy: createdBy,
+        members: [createdBy, ...(members || []).filter(m => m !== createdBy)],
+        createdAt: new Date().toISOString()
+    };
+    
+    groupsData.groups.push(newGroup);
+    saveGroups(groupsData);
+    
+    res.json({ success: true, groupId });
+});
+
+// Получить группы пользователя
+app.get('/api/groups/:username', (req, res) => {
+    const { username } = req.params;
+    const userGroups = groupsData.groups.filter(group => group.members.includes(username));
+    res.json(userGroups);
+});
+
+// Получить участников группы
+app.get('/api/groups/:groupId/members', (req, res) => {
+    const { groupId } = req.params;
+    const group = groupsData.groups.find(g => g.id == groupId);
+    if (!group) return res.json([]);
+    res.json(group.members);
+});
+
+// Добавить участника в группу
+app.post('/api/groups/:groupId/add', (req, res) => {
+    const { groupId } = req.params;
+    const { username } = req.body;
+    
+    const group = groupsData.groups.find(g => g.id == groupId);
+    if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+    
+    if (!group.members.includes(username)) {
+        group.members.push(username);
+        saveGroups(groupsData);
+    }
+    
+    res.json({ success: true });
+});
+
+// История сообщений группы
+app.get('/api/group-messages/:groupId', (req, res) => {
+    const { groupId } = req.params;
+    const chatId = `group_${groupId}`;
+    const chatMessages = messages[chatId] || [];
+    res.json(chatMessages);
+});
+
+// ============ Socket.io ============
+
 io.on('connection', (socket) => {
     console.log('🔌 Новое подключение');
     
@@ -153,31 +238,109 @@ io.on('connection', (socket) => {
         console.log(`✅ ${username} онлайн`);
     });
     
+    // Личное сообщение
     socket.on('private_message', (data) => {
         const { to, message, from, time } = data;
         const chatId = [from, to].sort().join('_');
         
-        // Сохраняем сообщение
         if (!messages[chatId]) messages[chatId] = [];
-        messages[chatId].push({
+        const newMessage = {
+            id: Date.now(),
             from,
             to,
             text: message,
             time,
             timestamp: Date.now(),
-            read: false
-        });
+            readBy: [from]
+        };
+        messages[chatId].push(newMessage);
         saveMessages(messages);
         
-        // Отправляем если получатель онлайн
         const targetSocketId = onlineUsers.get(to);
         if (targetSocketId) {
             io.to(targetSocketId).emit('new_message', {
+                id: newMessage.id,
                 from, message, time
             });
         }
         
-        socket.emit('message_sent', { to, message, time });
+        socket.emit('message_sent', { id: newMessage.id, to, message, time });
+    });
+    
+    // Групповое сообщение
+    socket.on('group_message', (data) => {
+        const { groupId, message, from, time } = data;
+        const chatId = `group_${groupId}`;
+        
+        if (!messages[chatId]) messages[chatId] = [];
+        const newMessage = {
+            id: Date.now(),
+            from,
+            groupId: groupId,
+            text: message,
+            time,
+            timestamp: Date.now(),
+            readBy: [from],
+            chatType: 'group'
+        };
+        messages[chatId].push(newMessage);
+        saveMessages(messages);
+        
+        // Получаем участников группы
+        const group = groupsData.groups.find(g => g.id == groupId);
+        if (group) {
+            group.members.forEach(member => {
+                const targetSocketId = onlineUsers.get(member);
+                if (targetSocketId && member !== from) {
+                    io.to(targetSocketId).emit('new_group_message', {
+                        id: newMessage.id,
+                        groupId,
+                        from,
+                        message,
+                        time
+                    });
+                }
+            });
+        }
+        
+        socket.emit('message_sent', { id: newMessage.id, to: `group_${groupId}`, message, time });
+    });
+    
+    // Отметить сообщение как прочитанное
+    socket.on('mark_read', (data) => {
+        const { messageId, username, chatId } = data;
+        
+        const messagesList = messages[chatId];
+        if (messagesList) {
+            const msg = messagesList.find(m => m.id == messageId);
+            if (msg && !msg.readBy.includes(username)) {
+                msg.readBy.push(username);
+                saveMessages(messages);
+                
+                // Уведомить отправителя о прочтении
+                const senderSocketId = onlineUsers.get(msg.from);
+                if (senderSocketId) {
+                    io.to(senderSocketId).emit('message_read', {
+                        messageId,
+                        readBy: username,
+                        chatId
+                    });
+                }
+            }
+        }
+    });
+    
+    // Получить статус прочтения
+    socket.on('get_read_status', (data) => {
+        const { messageId, chatId } = data;
+        const messagesList = messages[chatId];
+        const msg = messagesList?.find(m => m.id == messageId);
+        if (msg) {
+            socket.emit('read_status', {
+                messageId,
+                readBy: msg.readBy || []
+            });
+        }
     });
     
     socket.on('get_history', (data) => {
@@ -185,6 +348,13 @@ io.on('connection', (socket) => {
         const chatId = [socket.username, withUser].sort().join('_');
         const history = messages[chatId] || [];
         socket.emit('chat_history', history);
+    });
+    
+    socket.on('get_group_history', (data) => {
+        const { groupId } = data;
+        const chatId = `group_${groupId}`;
+        const history = messages[chatId] || [];
+        socket.emit('group_history', history);
     });
     
     socket.on('typing', (data) => {
@@ -212,4 +382,5 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`💖 http://localhost:${PORT}`);
     console.log(`📁 Пользователи: ${USERS_FILE}`);
     console.log(`💬 Сообщения: ${MESSAGES_FILE}`);
+    console.log(`👥 Группы: ${GROUPS_FILE}`);
 });
