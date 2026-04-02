@@ -19,7 +19,7 @@ const USERS_FILE = path.join(__dirname, 'users.json');
 const MESSAGES_FILE = path.join(__dirname, 'messages.json');
 const GROUPS_FILE = path.join(__dirname, 'groups.json');
 
-// Загрузка пользователей
+// Загрузка данных
 function loadUsers() {
     try {
         if (fs.existsSync(USERS_FILE)) {
@@ -29,12 +29,10 @@ function loadUsers() {
     return {};
 }
 
-// Сохранение пользователей
 function saveUsers(users) {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-// Загрузка сообщений
 function loadMessages() {
     try {
         if (fs.existsSync(MESSAGES_FILE)) {
@@ -44,45 +42,41 @@ function loadMessages() {
     return {};
 }
 
-// Сохранение сообщений
 function saveMessages(messages) {
     fs.writeFileSync(MESSAGES_FILE, JSON.stringify(messages, null, 2));
 }
 
-// Загрузка групп
 function loadGroups() {
     try {
         if (fs.existsSync(GROUPS_FILE)) {
             return JSON.parse(fs.readFileSync(GROUPS_FILE, 'utf8'));
         }
     } catch (e) { console.error(e); }
-    return { groups: [], nextId: 1 };
+    return [];
 }
 
-// Сохранение групп
-function saveGroups(groupsData) {
-    fs.writeFileSync(GROUPS_FILE, JSON.stringify(groupsData, null, 2));
+function saveGroups(groups) {
+    fs.writeFileSync(GROUPS_FILE, JSON.stringify(groups, null, 2));
 }
 
 let users = loadUsers();
 let messages = loadMessages();
-let groupsData = loadGroups();
-let onlineUsers = new Map(); // username -> socketId
+let groups = loadGroups();
+let onlineUsers = new Map();
 
-// Функция для аватарки
 function getRandomAvatar() {
-    const avatars = ['🐱', '🌸', '💖', '🎀', '🌟', '🍬', '✨', '💝', '🐰', '🦄'];
+    const avatars = ['🐱', '🌸', '💖', '🎀', '🌟', '🍬', '✨', '💝'];
     return avatars[Math.floor(Math.random() * avatars.length)];
 }
 
-// ============ API ============
-
-// Регистрация
+// API Регистрация
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     
+    console.log('Регистрация:', username);
+    
     if (!username || username.length < 3) {
-        return res.status(400).json({ error: 'Имя должно быть минимум 3 символа! 🎀' });
+        return res.status(400).json({ error: 'Имя минимум 3 символа! 🎀' });
     }
     if (!password || password.length < 4) {
         return res.status(400).json({ error: 'Пароль минимум 4 символа! 🔐' });
@@ -98,17 +92,18 @@ app.post('/api/register', async (req, res) => {
         username,
         password: hashedPassword,
         avatar: getRandomAvatar(),
-        createdAt: new Date().toISOString(),
-        online: false
+        createdAt: new Date().toISOString()
     };
     
     saveUsers(users);
     res.json({ success: true, message: 'Регистрация успешна! 💖' });
 });
 
-// Вход
+// API Вход
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
+    
+    console.log('Вход:', username);
     
     const user = users[username];
     if (!user) {
@@ -139,7 +134,7 @@ app.get('/api/users', (req, res) => {
     res.json(userList);
 });
 
-// Поиск пользователя
+// Поиск пользователей
 app.get('/api/search/:query', (req, res) => {
     const query = req.params.query.toLowerCase();
     const results = Object.keys(users)
@@ -153,7 +148,7 @@ app.get('/api/search/:query', (req, res) => {
     res.json(results);
 });
 
-// История личных сообщений
+// История сообщений
 app.get('/api/messages/:user1/:user2', (req, res) => {
     const { user1, user2 } = req.params;
     const chatId = [user1, user2].sort().join('_');
@@ -161,19 +156,12 @@ app.get('/api/messages/:user1/:user2', (req, res) => {
     res.json(chatMessages);
 });
 
-// ============ ГРУППОВЫЕ ЧАТЫ ============
-
 // Создать группу
 app.post('/api/groups/create', (req, res) => {
     const { name, createdBy, members } = req.body;
     
-    if (!name || !createdBy) {
-        return res.status(400).json({ error: 'Название и создатель обязательны!' });
-    }
-    
-    const groupId = groupsData.nextId++;
     const newGroup = {
-        id: groupId,
+        id: Date.now(),
         name: name,
         avatar: '👥',
         createdBy: createdBy,
@@ -181,44 +169,27 @@ app.post('/api/groups/create', (req, res) => {
         createdAt: new Date().toISOString()
     };
     
-    groupsData.groups.push(newGroup);
-    saveGroups(groupsData);
+    groups.push(newGroup);
+    saveGroups(groups);
     
-    res.json({ success: true, groupId });
+    res.json({ success: true, groupId: newGroup.id });
 });
 
 // Получить группы пользователя
 app.get('/api/groups/:username', (req, res) => {
     const { username } = req.params;
-    const userGroups = groupsData.groups.filter(group => group.members.includes(username));
+    const userGroups = groups.filter(group => group.members.includes(username));
     res.json(userGroups);
 });
 
 // Получить участников группы
 app.get('/api/groups/:groupId/members', (req, res) => {
     const { groupId } = req.params;
-    const group = groupsData.groups.find(g => g.id == groupId);
-    if (!group) return res.json([]);
-    res.json(group.members);
+    const group = groups.find(g => g.id == groupId);
+    res.json(group ? group.members : []);
 });
 
-// Добавить участника в группу
-app.post('/api/groups/:groupId/add', (req, res) => {
-    const { groupId } = req.params;
-    const { username } = req.body;
-    
-    const group = groupsData.groups.find(g => g.id == groupId);
-    if (!group) return res.status(404).json({ error: 'Группа не найдена' });
-    
-    if (!group.members.includes(username)) {
-        group.members.push(username);
-        saveGroups(groupsData);
-    }
-    
-    res.json({ success: true });
-});
-
-// История сообщений группы
+// История группы
 app.get('/api/group-messages/:groupId', (req, res) => {
     const { groupId } = req.params;
     const chatId = `group_${groupId}`;
@@ -226,8 +197,7 @@ app.get('/api/group-messages/:groupId', (req, res) => {
     res.json(chatMessages);
 });
 
-// ============ Socket.io ============
-
+// Socket.io
 io.on('connection', (socket) => {
     console.log('🔌 Новое подключение');
     
@@ -244,27 +214,23 @@ io.on('connection', (socket) => {
         const chatId = [from, to].sort().join('_');
         
         if (!messages[chatId]) messages[chatId] = [];
-        const newMessage = {
+        messages[chatId].push({
             id: Date.now(),
             from,
             to,
             text: message,
             time,
             timestamp: Date.now(),
-            readBy: [from]
-        };
-        messages[chatId].push(newMessage);
+            read: false
+        });
         saveMessages(messages);
         
         const targetSocketId = onlineUsers.get(to);
         if (targetSocketId) {
-            io.to(targetSocketId).emit('new_message', {
-                id: newMessage.id,
-                from, message, time
-            });
+            io.to(targetSocketId).emit('new_message', { from, message, time });
         }
         
-        socket.emit('message_sent', { id: newMessage.id, to, message, time });
+        socket.emit('message_sent', { to, message, time });
     });
     
     // Групповое сообщение
@@ -273,88 +239,25 @@ io.on('connection', (socket) => {
         const chatId = `group_${groupId}`;
         
         if (!messages[chatId]) messages[chatId] = [];
-        const newMessage = {
+        messages[chatId].push({
             id: Date.now(),
             from,
-            groupId: groupId,
             text: message,
             time,
             timestamp: Date.now(),
-            readBy: [from],
-            chatType: 'group'
-        };
-        messages[chatId].push(newMessage);
+            groupId: groupId
+        });
         saveMessages(messages);
         
-        // Получаем участников группы
-        const group = groupsData.groups.find(g => g.id == groupId);
+        const group = groups.find(g => g.id == groupId);
         if (group) {
             group.members.forEach(member => {
                 const targetSocketId = onlineUsers.get(member);
                 if (targetSocketId && member !== from) {
-                    io.to(targetSocketId).emit('new_group_message', {
-                        id: newMessage.id,
-                        groupId,
-                        from,
-                        message,
-                        time
-                    });
+                    io.to(targetSocketId).emit('new_group_message', { groupId, from, message, time });
                 }
             });
         }
-        
-        socket.emit('message_sent', { id: newMessage.id, to: `group_${groupId}`, message, time });
-    });
-    
-    // Отметить сообщение как прочитанное
-    socket.on('mark_read', (data) => {
-        const { messageId, username, chatId } = data;
-        
-        const messagesList = messages[chatId];
-        if (messagesList) {
-            const msg = messagesList.find(m => m.id == messageId);
-            if (msg && !msg.readBy.includes(username)) {
-                msg.readBy.push(username);
-                saveMessages(messages);
-                
-                // Уведомить отправителя о прочтении
-                const senderSocketId = onlineUsers.get(msg.from);
-                if (senderSocketId) {
-                    io.to(senderSocketId).emit('message_read', {
-                        messageId,
-                        readBy: username,
-                        chatId
-                    });
-                }
-            }
-        }
-    });
-    
-    // Получить статус прочтения
-    socket.on('get_read_status', (data) => {
-        const { messageId, chatId } = data;
-        const messagesList = messages[chatId];
-        const msg = messagesList?.find(m => m.id == messageId);
-        if (msg) {
-            socket.emit('read_status', {
-                messageId,
-                readBy: msg.readBy || []
-            });
-        }
-    });
-    
-    socket.on('get_history', (data) => {
-        const { withUser } = data;
-        const chatId = [socket.username, withUser].sort().join('_');
-        const history = messages[chatId] || [];
-        socket.emit('chat_history', history);
-    });
-    
-    socket.on('get_group_history', (data) => {
-        const { groupId } = data;
-        const chatId = `group_${groupId}`;
-        const history = messages[chatId] || [];
-        socket.emit('group_history', history);
     });
     
     socket.on('typing', (data) => {
@@ -380,7 +283,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`✨ Hello Kitty Messenger запущен!`);
     console.log(`💖 http://localhost:${PORT}`);
-    console.log(`📁 Пользователи: ${USERS_FILE}`);
-    console.log(`💬 Сообщения: ${MESSAGES_FILE}`);
-    console.log(`👥 Группы: ${GROUPS_FILE}`);
 });
