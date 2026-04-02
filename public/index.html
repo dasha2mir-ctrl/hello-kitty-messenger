@@ -342,78 +342,83 @@
         }
 
         async function renderMessenger() {
-            const users = await fetchUsers();
-            
-            document.getElementById('app').innerHTML = `
-                <div class="app">
-                    <div class="sidebar">
-                        <div class="user-info">
-                            <div class="user-avatar">${currentUser.avatar}</div>
-                            <div class="username">${currentUser.username}</div>
-                            <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
-                        </div>
-                        <div class="search-box">
-                            <input type="text" id="searchInput" placeholder="🔍 Найти друга..." onkeyup="searchUsers()">
-                        </div>
-                        <div class="users-list">
-                            <div class="section-title">💕 Друзья</div>
-                            <div id="usersList"></div>
-                            <div class="section-title">👥 Группы</div>
-                            <div id="groupsList"></div>
-                            <button class="group-btn" onclick="createGroup()">➕ Создать группу</button>
-                        </div>
-                    </div>
-                    <div class="chat-area">
-                        ${currentGroup ? `
-                            <div class="chat-header">
-                                <div class="chat-avatar">👥</div>
-                                <h2>Групповой чат</h2>
-                            </div>
-                            <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
-                            <div class="input-area">
-                                <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleKeyPress(event)">
-                                <button onclick="sendGroupMessage()">📨</button>
-                            </div>
-                        ` : currentChatUser ? `
-                            <div class="chat-header">
-                                <div class="chat-avatar" id="chatAvatar">🐱</div>
-                                <h2>${currentChatUser}</h2>
-                            </div>
-                            <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
-                            <div class="input-area">
-                                <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleKeyPress(event)">
-                                <button onclick="sendMessage()">📨</button>
-                            </div>
-                        ` : `
-                            <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;">
-                                <div style="font-size:80px;">💖</div>
-                                <div style="color:#ff88a5;">Выбери друга или группу!</div>
-                            </div>
-                        `}
-                    </div>
+    const users = await fetchUsers();
+    await loadGroups(); // Загружаем группы перед отображением
+    
+    document.getElementById('app').innerHTML = `
+        <div class="app">
+            <div class="sidebar">
+                <div class="user-info">
+                    <div class="user-avatar">${currentUser.avatar}</div>
+                    <div class="username">${currentUser.username}</div>
+                    <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
                 </div>
-            `;
-            
-            if (currentChatUser) {
-                await loadChatHistory();
-                updateUsersList(await fetchOnlineUsers());
-            } else if (currentGroup) {
-                await loadGroupHistory();
-            } else {
-                updateUsersList(await fetchOnlineUsers());
-            }
-            
-            // Показать группы
-            const groupsContainer = document.getElementById('groupsList');
-            if (groupsContainer) {
-                groupsContainer.innerHTML = groupsList.map(g => `
-                    <div class="user-item ${currentGroup === g.id ? 'active' : ''}" onclick="selectGroup(${g.id})">
-                        <div class="user-avatar-small">${g.avatar || '👥'}</div>
-                        <div class="user-name">${g.name}</div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 Найти друга..." onkeyup="searchUsers()">
+                </div>
+                <div class="users-list">
+                    <div class="section-title">💕 Друзья</div>
+                    <div id="usersList"></div>
+                    <div class="section-title" style="margin-top: 15px;">👥 Группы (${groupsList.length})</div>
+                    <div id="groupsList"></div>
+                    <button class="group-btn" onclick="createGroup()">➕ Создать группу</button>
+                </div>
+            </div>
+            <div class="chat-area">
+                ${currentGroup ? `
+                    <div class="chat-header">
+                        <div class="chat-avatar">👥</div>
+                        <h2>${getGroupName(currentGroup)}</h2>
                     </div>
-                `).join('');
-            }
+                    <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
+                    <div class="input-area">
+                        <input type="text" id="messageInput" placeholder="Напиши сообщение в группу..." onkeypress="handleKeyPress(event)">
+                        <button onclick="sendGroupMessage()">📨</button>
+                    </div>
+                ` : currentChatUser ? `
+                    <div class="chat-header">
+                        <div class="chat-avatar" id="chatAvatar">🐱</div>
+                        <h2>${currentChatUser}</h2>
+                    </div>
+                    <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
+                    <div class="input-area">
+                        <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleKeyPress(event)">
+                        <button onclick="sendMessage()">📨</button>
+                    </div>
+                ` : `
+                    <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;">
+                        <div style="font-size:80px;">💖</div>
+                        <div style="color:#ff88a5;">Выбери друга или группу!</div>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+    
+    // Показать список групп
+    const groupsContainer = document.getElementById('groupsList');
+    if (groupsContainer) {
+        if (groupsList.length === 0) {
+            groupsContainer.innerHTML = '<div style="padding: 10px; color: #ffb7c5; text-align: center;">✨ Нет групп. Создай первую!</div>';
+        } else {
+            groupsContainer.innerHTML = groupsList.map(g => `
+                <div class="user-item ${currentGroup === g.id ? 'active' : ''}" onclick="selectGroup(${g.id})">
+                    <div class="user-avatar-small">${g.avatar || '👥'}</div>
+                    <div class="user-name">${escapeHtml(g.name)}</div>
+                </div>
+            `).join('');
         }
+    }
+    
+    if (currentChatUser) {
+        await loadChatHistory();
+        updateUsersList(await fetchOnlineUsers());
+    } else if (currentGroup) {
+        await loadGroupHistory();
+    } else {
+        updateUsersList(await fetchOnlineUsers());
+    }
+}
 
         async function fetchUsers() {
             const res = await fetch('/api/users');
