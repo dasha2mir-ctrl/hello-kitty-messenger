@@ -18,6 +18,7 @@ app.use(express.static('public'));
 const USERS_FILE = path.join(__dirname, 'users.json');
 const MESSAGES_FILE = path.join(__dirname, 'messages.json');
 const GROUPS_FILE = path.join(__dirname, 'groups.json');
+const CONTACTS_FILE = path.join(__dirname, 'contacts.json');
 
 // Загрузка данных
 function loadUsers() {
@@ -59,9 +60,24 @@ function saveGroups(groups) {
     fs.writeFileSync(GROUPS_FILE, JSON.stringify(groups, null, 2));
 }
 
+// Загрузка контактов (кто кого добавил)
+function loadContacts() {
+    try {
+        if (fs.existsSync(CONTACTS_FILE)) {
+            return JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
+        }
+    } catch (e) { console.error(e); }
+    return {};
+}
+
+function saveContacts(contacts) {
+    fs.writeFileSync(CONTACTS_FILE, JSON.stringify(contacts, null, 2));
+}
+
 let users = loadUsers();
 let messages = loadMessages();
 let groups = loadGroups();
+let contacts = loadContacts();
 let onlineUsers = new Map();
 
 function getRandomAvatar() {
@@ -69,27 +85,37 @@ function getRandomAvatar() {
     return avatars[Math.floor(Math.random() * avatars.length)];
 }
 
+// Проверка уникальности тега
+function isTagUnique(tag) {
+    return !Object.values(users).some(user => user.tag === tag);
+}
+
 // API Регистрация
 app.post('/api/register', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, tag, password } = req.body;
     
-    console.log('Регистрация:', username);
+    console.log('Регистрация:', username, tag);
     
-    if (!username || username.length < 3) {
-        return res.status(400).json({ error: 'Имя минимум 3 символа! 🎀' });
+    if (!username || username.length < 2) {
+        return res.status(400).json({ error: 'Имя минимум 2 символа! 🎀' });
+    }
+    if (!tag || tag.length < 3) {
+        return res.status(400).json({ error: 'Тег минимум 3 символа! 🎀' });
     }
     if (!password || password.length < 4) {
         return res.status(400).json({ error: 'Пароль минимум 4 символа! 🔐' });
     }
     
-    if (users[username]) {
-        return res.status(400).json({ error: 'Такой никнейм уже занят! 💔' });
+    // Проверка уникальности тега
+    if (!isTagUnique(tag)) {
+        return res.status(400).json({ error: 'Такой тег уже занят! Выбери другой 💔' });
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
     users[username] = {
         username,
+        tag: tag.startsWith('@') ? tag : '@' + tag,
         password: hashedPassword,
         avatar: getRandomAvatar(),
         createdAt: new Date().toISOString()
@@ -115,37 +141,99 @@ app.post('/api/login', async (req, res) => {
         return res.status(400).json({ error: 'Неверный пароль! 💔' });
     }
     
+    // Получаем контакты пользователя
+    const userContacts = contacts[username] || [];
+    const contactsWithInfo = userContacts.map(contactUsername => ({
+        username: contactUsername,
+        tag: users[contactUsername]?.tag,
+        avatar: users[contactUsername]?.avatar,
+        online: onlineUsers.has(contactUsername)
+    }));
+    
     res.json({
         success: true,
         user: {
             username: user.username,
+            tag: user.tag,
             avatar: user.avatar
-        }
+        },
+        contacts: contactsWithInfo
     });
 });
 
-// Получить всех пользователей
-app.get('/api/users', (req, res) => {
-    const userList = Object.keys(users).map(username => ({
-        username,
-        avatar: users[username].avatar,
-        online: onlineUsers.has(username)
-    }));
-    res.json(userList);
+// Поиск пользователя по тегу
+app.get('/api/search/:tag', (req, res) => {
+    const searchTag = req.params.tag;
+    const normalizedSearch = searchTag.startsWith('@') ? searchTag : '@' + searchTag;
+    
+    const foundUser = Object.values(users).find(user => 
+        user.tag.toLowerCase() === normalizedSearch.toLowerCase()
+    );
+    
+    if (foundUser) {
+        res.json({
+            found: true,
+            user: {
+                username: foundUser.username,
+                tag: foundUser.tag,
+                avatar: foundUser.avatar,
+                online: onlineUsers.has(foundUser.username)
+            }
+        });
+    } else {
+        res.json({ found: false });
+    }
 });
 
-// Поиск пользователей
-app.get('/api/search/:query', (req, res) => {
-    const query = req.params.query.toLowerCase();
-    const results = Object.keys(users)
-        .filter(username => username.toLowerCase().includes(query))
-        .slice(0, 10)
-        .map(username => ({
-            username,
-            avatar: users[username].avatar,
+// Добавить контакт
+app.post('/api/add-contact', (req, res) => {
+    const { myUsername, contactUsername } = req.body;
+    
+    if (!contacts[myUsername]) {
+        contacts[myUsername] = [];
+    }
+    
+    if (!contacts[myUsername].includes(contactUsername)) {
+        contacts[myUsername].push(contactUsername);
+        saveContacts(contacts);
+    }
+    
+    res.json({ success: true });
+});
+
+// Получить мои контакты
+app.get('/api/my-contacts/:username', (req, res) => {
+    const { username } = req.params;
+    const userContacts = contacts[username] || [];
+    
+    const contactsWithInfo = userContacts.map(contactUsername => {
+        const user = users[contactUsername];
+        return {
+            username: contactUsername,
+            tag: user?.tag,
+            avatar: user?.avatar,
+            online: onlineUsers.has(contactUsername)
+        };
+    });
+    
+    res.json(contactsWithInfo);
+});
+
+// Получить информацию о пользователе по username
+app.get('/api/user/:username', (req, res) => {
+    const { username } = req.params;
+    const user = users[username];
+    
+    if (user) {
+        res.json({
+            username: user.username,
+            tag: user.tag,
+            avatar: user.avatar,
             online: onlineUsers.has(username)
-        }));
-    res.json(results);
+        });
+    } else {
+        res.status(404).json({ error: 'Не найден' });
+    }
 });
 
 // История сообщений
@@ -278,16 +366,6 @@ io.on('connection', (socket) => {
                     io.to(senderSocketId).emit('message_read', { messageId, readBy: username, chatId });
                 }
             }
-        }
-    });
-    
-    // Получить статус прочтения
-    socket.on('get_read_status', (data) => {
-        const { messageId, chatId } = data;
-        const msgs = messages[chatId];
-        const msg = msgs?.find(m => m.id == messageId);
-        if (msg) {
-            socket.emit('read_status', { messageId, readBy: msg.readBy || [] });
         }
     });
     
