@@ -214,23 +214,24 @@ io.on('connection', (socket) => {
         const chatId = [from, to].sort().join('_');
         
         if (!messages[chatId]) messages[chatId] = [];
-        messages[chatId].push({
+        const newMsg = {
             id: Date.now(),
             from,
             to,
             text: message,
             time,
             timestamp: Date.now(),
-            read: false
-        });
+            readBy: [from]
+        };
+        messages[chatId].push(newMsg);
         saveMessages(messages);
         
         const targetSocketId = onlineUsers.get(to);
         if (targetSocketId) {
-            io.to(targetSocketId).emit('new_message', { from, message, time });
+            io.to(targetSocketId).emit('new_message', { id: newMsg.id, from, message, time });
         }
         
-        socket.emit('message_sent', { to, message, time });
+        socket.emit('message_sent', { id: newMsg.id, to, message, time });
     });
     
     // Групповое сообщение
@@ -239,14 +240,16 @@ io.on('connection', (socket) => {
         const chatId = `group_${groupId}`;
         
         if (!messages[chatId]) messages[chatId] = [];
-        messages[chatId].push({
+        const newMsg = {
             id: Date.now(),
             from,
             text: message,
             time,
             timestamp: Date.now(),
-            groupId: groupId
-        });
+            groupId: groupId,
+            readBy: [from]
+        };
+        messages[chatId].push(newMsg);
         saveMessages(messages);
         
         const group = groups.find(g => g.id == groupId);
@@ -254,9 +257,37 @@ io.on('connection', (socket) => {
             group.members.forEach(member => {
                 const targetSocketId = onlineUsers.get(member);
                 if (targetSocketId && member !== from) {
-                    io.to(targetSocketId).emit('new_group_message', { groupId, from, message, time });
+                    io.to(targetSocketId).emit('new_group_message', { id: newMsg.id, groupId, from, message, time });
                 }
             });
+        }
+    });
+    
+    // Отметить как прочитанное
+    socket.on('mark_read', (data) => {
+        const { messageId, username, chatId } = data;
+        const msgs = messages[chatId];
+        if (msgs) {
+            const msg = msgs.find(m => m.id == messageId);
+            if (msg && !msg.readBy.includes(username)) {
+                msg.readBy.push(username);
+                saveMessages(messages);
+                
+                const senderSocketId = onlineUsers.get(msg.from);
+                if (senderSocketId && msg.from !== username) {
+                    io.to(senderSocketId).emit('message_read', { messageId, readBy: username, chatId });
+                }
+            }
+        }
+    });
+    
+    // Получить статус прочтения
+    socket.on('get_read_status', (data) => {
+        const { messageId, chatId } = data;
+        const msgs = messages[chatId];
+        const msg = msgs?.find(m => m.id == messageId);
+        if (msg) {
+            socket.emit('read_status', { messageId, readBy: msg.readBy || [] });
         }
     });
     
