@@ -488,22 +488,39 @@
         }
 
         async function searchUser() {
-            const searchInput = document.getElementById('searchInput').value.trim();
-            if (!searchInput) {
-                searchResult = null;
-                renderMessenger();
-                return;
-            }
-            
-            try {
-                const res = await fetch(`/api/search/${searchInput}`);
-                const data = await res.json();
-                searchResult = data.found ? data.user : null;
-                renderMessenger();
-            } catch(e) {
-                searchResult = null;
-            }
+    const searchInput = document.getElementById('searchInput');
+    if (!searchInput) return;
+    
+    const query = searchInput.value.trim();
+    
+    // Если поле пустое - очищаем результат поиска
+    if (!query) {
+        searchResult = null;
+        renderMessenger();
+        return;
+    }
+    
+    // Не ищем если меньше 2 символов (чтобы не спамить)
+    if (query.length < 2) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/search/${encodeURIComponent(query)}`);
+        const data = await res.json();
+        searchResult = data.found ? data.user : null;
+        renderMessenger();
+        
+        // Восстанавливаем текст в поле поиска
+        const searchInputAfter = document.getElementById('searchInput');
+        if (searchInputAfter) {
+            searchInputAfter.value = query;
         }
+    } catch(e) {
+        console.error('Ошибка поиска:', e);
+        searchResult = null;
+    }
+}
 
         async function addContact() {
             if (!searchResult) return;
@@ -564,119 +581,130 @@
         }
 
         async function renderMessenger() {
-            document.getElementById('app').innerHTML = `
-                <div class="app">
-                    <div class="sidebar">
-                        <div class="user-info">
-                            <div class="user-avatar">${currentUser.avatar}</div>
-                            <div class="username">${escapeHtml(currentUser.username)}</div>
-                            <div class="user-tag">${escapeHtml(currentUser.tag)}</div>
-                            <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
-                        </div>
-                        <div class="search-box">
-                            <input type="text" id="searchInput" placeholder="🔍 Найти друга по тегу (например: @dasha)" onkeyup="searchUser()">
-                        </div>
-                        <div class="contacts-list">
-                            ${searchResult ? `
-                                <div class="search-result">
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div class="contact-avatar">${searchResult.avatar}</div>
-                                        <div style="flex: 1;">
-                                            <div style="font-weight: bold;">${escapeHtml(searchResult.username)}</div>
-                                            <div style="font-size: 12px; color: #ff88a5;">${escapeHtml(searchResult.tag)}</div>
-                                        </div>
-                                        <button class="add-contact-btn" onclick="addContact()">➕ Добавить</button>
-                                    </div>
-                                </div>
-                            ` : ''}
-                            <div class="section-title">💕 Мои контакты (${myContacts.length})</div>
-                            <div id="contactsList"></div>
-                            <div class="section-title" style="margin-top: 15px;">👥 Группы (${groupsList.length})</div>
-                            <div id="groupsList"></div>
-                            <button class="group-btn" onclick="createGroup()">➕ Создать группу</button>
-                        </div>
-                    </div>
-                    <div class="chat-area">
-                        ${currentGroup ? `
-                            <div class="chat-header">
-                                <div class="chat-avatar">👥</div>
-                                <div>
-                                    <h2>${escapeHtml(getGroupName(currentGroup))}</h2>
-                                </div>
-                            </div>
-                            <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
-                            <div class="input-area">
-                                <input type="text" id="messageInput" placeholder="Напиши сообщение в группу..." onkeypress="handleKeyPress(event)">
-                                <button onclick="sendGroupMessage()">📨</button>
-                            </div>
-                        ` : currentChatUser ? `
-                            <div class="chat-header">
-                                <div class="chat-avatar" id="chatAvatar">${getContactAvatar(currentChatUser)}</div>
-                                <div>
-                                    <h2>${escapeHtml(currentChatUser)}</h2>
-                                    <div class="chat-tag">${getContactTag(currentChatUser)}</div>
-                                </div>
-                            </div>
-                            <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
-                            <div class="input-area">
-                                <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleKeyPress(event)">
-                                <button onclick="sendMessage()">📨</button>
-                            </div>
-                        ` : `
-                            <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;">
-                                <div style="font-size:80px;">💖</div>
-                                <div style="color:#ff88a5; text-align:center; padding:20px;">
-                                    Найди друзей по тегу и добавь их в контакты!<br>
-                                    🔹 Твой тег: ${currentUser.tag}
-                                </div>
-                            </div>
-                        `}
+    document.getElementById('app').innerHTML = `
+        <div class="app">
+            <div class="sidebar">
+                <div class="user-info">
+                    <div class="user-avatar">${currentUser.avatar}</div>
+                    <div class="username">${escapeHtml(currentUser.username)}</div>
+                    <div class="user-tag">${escapeHtml(currentUser.tag)}</div>
+                    <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
+                </div>
+                <div class="search-box">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="searchInput" placeholder="🔍 Найти друга по тегу (например: @dasha)" style="flex: 1; padding: 12px; border: 2px solid #ffb7c5; border-radius: 25px; outline: none;">
+                        <button onclick="searchUser()" style="background: #ffb7c5; border: none; border-radius: 25px; padding: 0 20px; font-size: 16px; cursor: pointer;">🔍</button>
                     </div>
                 </div>
-            `;
-            
-            // Отображаем контакты
-            const contactsContainer = document.getElementById('contactsList');
-            if (contactsContainer) {
-                if (myContacts.length === 0) {
-                    contactsContainer.innerHTML = '<div style="padding: 10px; color: #ffb7c5; text-align: center;">✨ Нет контактов. Найди друзей по тегу!</div>';
-                } else {
-                    contactsContainer.innerHTML = myContacts.map(c => `
-                        <div class="contact-item ${currentChatUser === c.username ? 'active' : ''}" onclick="selectUser('${c.username}')">
-                            <div class="contact-avatar">${c.avatar}</div>
-                            <div class="contact-info">
-                                <div class="contact-name">${escapeHtml(c.username)} <span class="${c.online ? 'online-dot' : 'offline-dot'}"></span></div>
-                                <div class="contact-tag">${escapeHtml(c.tag)}</div>
+                <div class="contacts-list">
+                    ${searchResult ? `
+                        <div class="search-result">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="contact-avatar">${searchResult.avatar}</div>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: bold;">${escapeHtml(searchResult.username)}</div>
+                                    <div style="font-size: 12px; color: #ff88a5;">${escapeHtml(searchResult.tag)}</div>
+                                </div>
+                                <button class="add-contact-btn" onclick="addContact()">➕ Добавить</button>
                             </div>
                         </div>
-                    `).join('');
-                }
-            }
-            
-            // Отображаем группы
-            const groupsContainer = document.getElementById('groupsList');
-            if (groupsContainer) {
-                if (groupsList.length === 0) {
-                    groupsContainer.innerHTML = '<div style="padding: 10px; color: #ffb7c5; text-align: center;">✨ Нет групп. Создай первую!</div>';
-                } else {
-                    groupsContainer.innerHTML = groupsList.map(g => `
-                        <div class="contact-item ${currentGroup === g.id ? 'active' : ''}" onclick="selectGroup(${g.id})">
-                            <div class="contact-avatar">${g.avatar || '👥'}</div>
-                            <div class="contact-info">
-                                <div class="contact-name">${escapeHtml(g.name)}</div>
-                                <div class="contact-tag">Группа</div>
-                            </div>
+                    ` : ''}
+                    <div class="section-title">💕 Мои контакты (${myContacts.length})</div>
+                    <div id="contactsList"></div>
+                    <div class="section-title" style="margin-top: 15px;">👥 Группы (${groupsList.length})</div>
+                    <div id="groupsList"></div>
+                    <button class="group-btn" onclick="createGroup()">➕ Создать группу</button>
+                </div>
+            </div>
+            <div class="chat-area">
+                ${currentGroup ? `
+                    <div class="chat-header">
+                        <div class="chat-avatar">👥</div>
+                        <div>
+                            <h2>${escapeHtml(getGroupName(currentGroup))}</h2>
                         </div>
-                    `).join('');
-                }
-            }
-            
-            if (currentChatUser) {
-                await loadChatHistory();
-            } else if (currentGroup) {
-                await loadGroupHistory();
-            }
+                    </div>
+                    <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
+                    <div class="input-area">
+                        <input type="text" id="messageInput" placeholder="Напиши сообщение в группу..." onkeypress="handleKeyPress(event)">
+                        <button onclick="sendGroupMessage()">📨</button>
+                    </div>
+                ` : currentChatUser ? `
+                    <div class="chat-header">
+                        <div class="chat-avatar" id="chatAvatar">${getContactAvatar(currentChatUser)}</div>
+                        <div>
+                            <h2>${escapeHtml(currentChatUser)}</h2>
+                            <div class="chat-tag">${getContactTag(currentChatUser)}</div>
+                        </div>
+                    </div>
+                    <div class="messages-area" id="messagesArea"><div style="text-align:center;color:#ffb7c5;">💬 Загрузка...</div></div>
+                    <div class="input-area">
+                        <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleKeyPress(event)">
+                        <button onclick="sendMessage()">📨</button>
+                    </div>
+                ` : `
+                    <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;">
+                        <div style="font-size:80px;">💖</div>
+                        <div style="color:#ff88a5; text-align:center; padding:20px;">
+                            Найди друзей по тегу и добавь их в контакты!<br>
+                            🔹 Твой тег: ${currentUser.tag}
+                        </div>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+    
+    // Восстанавливаем значение поля поиска
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput && searchResult) {
+        // Если есть результат поиска, показываем что искали
+        const lastSearch = searchResult.tag;
+        searchInput.value = lastSearch;
+    }
+    
+    // Отображаем контакты
+    const contactsContainer = document.getElementById('contactsList');
+    if (contactsContainer) {
+        if (myContacts.length === 0) {
+            contactsContainer.innerHTML = '<div style="padding: 10px; color: #ffb7c5; text-align: center;">✨ Нет контактов. Найди друзей по тегу!</div>';
+        } else {
+            contactsContainer.innerHTML = myContacts.map(c => `
+                <div class="contact-item ${currentChatUser === c.username ? 'active' : ''}" onclick="selectUser('${c.username}')">
+                    <div class="contact-avatar">${c.avatar}</div>
+                    <div class="contact-info">
+                        <div class="contact-name">${escapeHtml(c.username)} <span class="${c.online ? 'online-dot' : 'offline-dot'}"></span></div>
+                        <div class="contact-tag">${escapeHtml(c.tag)}</div>
+                    </div>
+                </div>
+            `).join('');
         }
+    }
+    
+    // Отображаем группы
+    const groupsContainer = document.getElementById('groupsList');
+    if (groupsContainer) {
+        if (groupsList.length === 0) {
+            groupsContainer.innerHTML = '<div style="padding: 10px; color: #ffb7c5; text-align: center;">✨ Нет групп. Создай первую!</div>';
+        } else {
+            groupsContainer.innerHTML = groupsList.map(g => `
+                <div class="contact-item ${currentGroup === g.id ? 'active' : ''}" onclick="selectGroup(${g.id})">
+                    <div class="contact-avatar">${g.avatar || '👥'}</div>
+                    <div class="contact-info">
+                        <div class="contact-name">${escapeHtml(g.name)}</div>
+                        <div class="contact-tag">Группа</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+    
+    if (currentChatUser) {
+        await loadChatHistory();
+    } else if (currentGroup) {
+        await loadGroupHistory();
+    }
+}
 
         function getContactAvatar(username) {
             const contact = myContacts.find(c => c.username === username);
