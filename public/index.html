@@ -221,192 +221,60 @@
         .switch-auth { margin-top: 15px; color: #ff6b8f; cursor: pointer; text-decoration: underline; }
         
         @media (max-width: 768px) {
-    body { padding: 0; margin: 0; }
-    
-    .app { 
-        flex-direction: column; 
-        height: 100vh; 
-        border-radius: 0;
-        width: 100%;
-    }
-    
-    /* Боковая панель - фиксированная высота с прокруткой */
-    .sidebar { 
-        width: 100%; 
-        height: auto;
-        max-height: 35%;
-        border-right: none; 
-        border-bottom: 2px solid #ffd1dc;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-    }
-    
-    /* Область чата */
-    .chat-area { 
-        height: 65%;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    /* Информация о пользователе */
-    .user-info {
-        padding: 8px;
-        text-align: center;
-    }
-    .user-avatar { font-size: 36px; margin-bottom: 3px; }
-    .username { font-size: 14px; }
-    .user-tag { font-size: 9px; }
-    .logout-btn { 
-        padding: 4px 12px; 
-        font-size: 11px;
-        margin-top: 5px;
-    }
-    
-    /* Поле поиска */
-    .search-box { 
-        padding: 6px; 
-    }
-    .search-box input { 
-        padding: 8px; 
-        font-size: 13px;
-        width: 100%;
-    }
-    
-    /* Контейнер с контактами и группами */
-    .contacts-list { 
-        padding: 6px;
-        flex: 1;
-        overflow-y: auto;
-    }
-    
-    /* Горизонтальная прокрутка для контактов */
-    #contactsList, #groupsList {
-        display: flex;
-        flex-direction: row;
-        overflow-x: auto;
-        overflow-y: hidden;
-        gap: 8px;
-        padding: 4px;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Стиль для каждого контакта/группы */
-    .contact-item { 
-        min-width: 85px;
-        width: auto;
-        flex-direction: column;
-        text-align: center;
-        gap: 4px;
-        margin: 0;
-        padding: 8px 6px;
-        background: white;
-        border-radius: 15px;
-        cursor: pointer;
-        border: 2px solid transparent;
-    }
-    
-    .contact-avatar { 
-        width: 45px; 
-        height: 45px; 
-        font-size: 24px; 
-        margin: 0 auto;
-    }
-    
-    .contact-name { 
-        font-size: 11px;
-        white-space: normal;
-        word-break: break-word;
-    }
-    
-    .contact-tag { 
-        font-size: 8px;
-        white-space: normal;
-        word-break: break-word;
-    }
-    
-    /* Кнопка создания группы */
-    .group-btn { 
-        font-size: 11px !important; 
-        padding: 6px !important; 
-        margin: 6px !important; 
-        width: calc(100% - 12px);
-    }
-    
-    /* Скрываем заголовки секций */
-    .section-title { 
-        display: none;
-    }
-    
-    /* Сообщения */
-    .message { 
-        max-width: 85%; 
-    }
-    .message-text { 
-        font-size: 13px; 
-    }
-    
-    /* Шапка чата */
-    .chat-header { 
-        padding: 8px 12px; 
-    }
-    .chat-header h2 { 
-        font-size: 16px; 
-    }
-    .chat-avatar { 
-        font-size: 32px; 
-    }
-    .chat-tag { 
-        font-size: 9px; 
-    }
-    
-    /* Поле ввода */
-    .input-area { 
-        padding: 8px; 
-    }
-    .input-area input { 
-        padding: 10px; 
-        font-size: 14px; 
-    }
-    .input-area button { 
-        padding: 0 15px; 
-        font-size: 16px;
-    }
-    
-    /* Окно авторизации */
-    .auth-box { 
-        width: 90%; 
-        padding: 20px 15px; 
-        margin: 20px; 
-    }
-    .auth-box h2 { 
-        font-size: 20px; 
-    }
-    .auth-box input { 
-        padding: 10px; 
-        font-size: 13px; 
-    }
-    .auth-box button { 
-        padding: 10px; 
-        font-size: 14px; 
-    }
-    
-    /* Результат поиска */
-    #searchResultDiv div {
-        flex-direction: column !important;
-        text-align: center;
-    }
-    #searchResultDiv .contact-avatar {
-        margin: 0 auto;
-    }
-    
-    /* Увеличиваем область касания */
-    .contact-item, .group-btn, .logout-btn, .input-area button {
-        touch-action: manipulation;
-    }
-}
+            body { padding: 0; margin: 0; }
+            .app { flex-direction: column; height: 100vh; border-radius: 0; width: 100%; }
+            .sidebar { width: 100%; height: auto; max-height: 35%; border-right: none; border-bottom: 2px solid #ffd1dc; display: flex; flex-direction: column; overflow-y: auto; }
+            .chat-area { height: 65%; display: flex; flex-direction: column; width: 100%; }
+            .user-info { padding: 8px; text-align: center; }
+            .user-avatar { font-size: 36px; margin-bottom: 3px; }
+            .username { font-size: 14px; }
+            .user-tag { font-size: 9px; }
+            .logout-btn { padding: 4px 12px; font-size: 11px; margin-top: 5px; }
+            .search-box { padding: 6px; }
+            .search-box input { padding: 8px; font-size: 13px; width: 100%; }
+            .contacts-list { padding: 6px; flex: 1; overflow-y: auto; }
+            #contactsList, #groupsList { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden; gap: 8px; padding: 4px; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+            .contact-item { min-width: 85px; width: auto; flex-direction: column; text-align: center; gap: 4px; margin: 0; padding: 8px 6px; background: white; border-radius: 15px; cursor: pointer; border: 2px solid transparent; }
+            .contact-avatar { width: 45px; height: 45px; font-size: 24px; margin: 0 auto; }
+            .contact-name { font-size: 11px; white-space: normal; word-break: break-word; }
+            .contact-tag { font-size: 8px; white-space: normal; word-break: break-word; }
+            .group-btn { font-size: 11px !important; padding: 6px !important; margin: 6px !important; width: calc(100% - 12px); }
+            .section-title { display: none; }
+            .message { max-width: 85%; }
+            .message-text { font-size: 13px; }
+            .chat-header { padding: 8px 12px; }
+            .chat-header h2 { font-size: 16px; }
+            .chat-avatar { font-size: 32px; }
+            .chat-tag { font-size: 9px; }
+            .input-area { padding: 8px; }
+            .input-area input { padding: 10px; font-size: 14px; }
+            .input-area button { padding: 0 15px; font-size: 16px; }
+            .auth-box { width: 90%; padding: 20px 15px; margin: 20px; }
+            .auth-box h2 { font-size: 20px; }
+            .auth-box input { padding: 10px; font-size: 13px; }
+            .auth-box button { padding: 10px; font-size: 14px; }
+            #searchResultDiv div { flex-direction: column !important; text-align: center; }
+            #searchResultDiv .contact-avatar { margin: 0 auto; }
+            .contact-item, .group-btn, .logout-btn, .input-area button { touch-action: manipulation; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        // ============ ОБЪЯВЛЕНИЕ ВСЕХ ПЕРЕМЕННЫХ ============
+        let socket;
+        let currentUser = null;
+        let currentChatUser = null;
+        let currentGroup = null;
+        let groupsList = [];
+        let myContacts = [];
+        // ===================================================
+        
+        function saveLogin(user) {
+            localStorage.setItem('kitty_user', JSON.stringify(user));
+        }
 
         function loadSavedLogin() {
             const saved = localStorage.getItem('kitty_user');
@@ -981,18 +849,21 @@
             return div.innerHTML;
         }
 
-        // Запуск
+        // ============ ЗАПУСК ============
         const saved = loadSavedLogin();
         if (saved) {
             currentUser = saved;
-            fetch(`/api/my-contacts/${currentUser.username}`).then(res => res.json()).then(contacts => {
-                myContacts = contacts;
-                connectSocket();
-                renderApp();
-            }).catch(() => {
-                connectSocket();
-                renderApp();
-            });
+            fetch(`/api/my-contacts/${currentUser.username}`)
+                .then(res => res.json())
+                .then(contacts => {
+                    myContacts = contacts;
+                    connectSocket();
+                    renderApp();
+                })
+                .catch(() => {
+                    connectSocket();
+                    renderApp();
+                });
         } else {
             renderApp();
         }
